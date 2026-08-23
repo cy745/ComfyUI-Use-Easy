@@ -11,7 +11,7 @@
 // @ts-ignore - ComfyUI serves /scripts/app.js at runtime; vite leaves it external.
 import { app } from '/scripts/app.js';
 
-const NODE_NAME = 'ImageCompare';
+const NODE_NAME = 'UseEasyImageCompare';
 
 app.registerExtension({
   name: 'UseEasy.ImageCompare',

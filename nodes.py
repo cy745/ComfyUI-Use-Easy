@@ -9,7 +9,7 @@ tuple matching ``RETURN_TYPES``.
 from __future__ import annotations
 
 
-class ImageCompare:
+class UseEasyImageCompare:
     """Preview node for side-by-side image comparison.
 
     The backend only passes the two images through unchanged. All the compare
@@ -38,11 +38,11 @@ class ImageCompare:
 
 
 NODE_CLASS_MAPPINGS = {
-    "ImageCompare": ImageCompare,
+    "UseEasyImageCompare": UseEasyImageCompare,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ImageCompare": "UseEasy Image Compare",
+    "UseEasyImageCompare": "UseEasy Image Compare",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

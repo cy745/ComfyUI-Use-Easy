@@ -20,7 +20,7 @@ Published to the **Comfy Registry** under publisher `lalilu`. License:
 ```
 AGENTS.md                 # this file
 __init__.py               # exports NODE_CLASS_MAPPINGS + mounts dist/ frontend
-nodes.py                  # backend node classes (ImageCompare is a thin passthrough)
+nodes.py                  # backend node classes (UseEasyImageCompare is a thin passthrough)
 subgraphs/                # subgraph blueprints
 ui/                       # React+TS frontend source (ui/dist -> ../dist)
 └─ src/imageCompare.ts    # custom node widget: beforeRegisterNodeDef + onDrawForeground
@@ -84,10 +84,10 @@ npm test           # frontend unit tests
 
 ## Frontend custom node UI
 
-`ui/src/imageCompare.ts` customizes the `ImageCompare` node's UI. It uses:
+`ui/src/imageCompare.ts` customizes the `UseEasyImageCompare` node's UI. It uses:
 
 - `app.registerExtension({ beforeRegisterNodeDef(nodeType, nodeData, app) })`
-  and guards on `nodeData.name === 'ImageCompare'`.
+  and guards on `nodeData.name === 'UseEasyImageCompare'`.
 - `nodeType.prototype.onDrawForeground` to render the two images from
   `node.imgs` (one `HTMLImageElement` per IMAGE output) with a draggable divider.
 - `onMouseDown` / `onMouseMove` / `onMouseUp` to drag the divider.
