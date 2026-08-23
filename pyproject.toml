@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_use_easy"
 description = "A standards-compliant ComfyUI custom-node starting point with backend nodes, subgraph blueprints, and a React/TypeScript frontend extension."
-version = "0.1.0"
+version = "0.1.1"
 license = { file = "LICENSE" }
 dependencies = []
 
