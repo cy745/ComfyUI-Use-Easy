@@ -24,8 +24,12 @@ app.registerExtension({
   beforeRegisterNodeDef(nodeType: any, nodeData: any, _app: any): void {
     if (nodeData.name !== NODE_NAME) return;
 
+    // Capture the previous onNodeCreated BEFORE overriding, so we don't recurse
+    // (other extensions also wrap this method; referencing the prototype inside
+    // would call ourselves and cause "too much recursion").
+    const origOnNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function (this: any) {
-      const orig = nodeType.prototype.onNodeCreated?.call(this);
+      const res = origOnNodeCreated?.apply(this, arguments);
       this.imgA = null;
       this.imgB = null;
       this.splitRatio = 0.5;
@@ -33,7 +37,7 @@ app.registerExtension({
       this.baseSize = [0, 0];
       this.isPointerOver = false;
       if (!this.size || this.size[0] < 300) this.size = [400, 440];
-      return orig;
+      return res;
     };
 
     nodeType.prototype.onExecuted = async function (this: any, output: any) {
