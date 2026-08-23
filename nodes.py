@@ -37,16 +37,26 @@ class UseEasyImageCompare(IO.ComfyNode):
     def execute(cls, image_a=None, image_b=None, compare_view=None) -> IO.NodeOutput:
         result = {"a_images": [], "b_images": []}
 
+        print(
+            f"[UseEasy][compare] execute. image_a None={image_a is None} len={0 if image_a is None else len(image_a)} | "
+            f"image_b None={image_b is None} len={0 if image_b is None else len(image_b)} | "
+            f"compare_view None={compare_view is None}",
+            flush=True,
+        )
+
         preview_node = nodes.PreviewImage()
 
         if image_a is not None and len(image_a) > 0:
             saved = preview_node.save_images(image_a, "use_easy.compare.a")
             result["a_images"] = saved["ui"]["images"]
+            print(f"[UseEasy][compare] saved a_images: {len(result['a_images'])}", flush=True)
 
         if image_b is not None and len(image_b) > 0:
             saved = preview_node.save_images(image_b, "use_easy.compare.b")
             result["b_images"] = saved["ui"]["images"]
+            print(f"[UseEasy][compare] saved b_images: {len(result['b_images'])}", flush=True)
 
+        print(f"[UseEasy][compare] result a={len(result['a_images'])} b={len(result['b_images'])}", flush=True)
         return IO.NodeOutput(ui=result)
 
 
