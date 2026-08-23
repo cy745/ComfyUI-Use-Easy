@@ -1,0 +1,41 @@
+name: Build UI + Publish to Comfy Registry
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'pyproject.toml'
+      - 'ui/**'
+      - '.github/workflows/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Install dependencies
+      run: |
+        cd ui
+        npm install
+
+    - name: Build React extension
+      run: |
+        cd ui
+        npm run build
+
+    - name: Publish Custom Node
+      uses: Comfy-Org/publish-node-action@main
+      with:
+        personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        skip_checkout: 'true'

@@ -10,8 +10,7 @@ Repository = "https://github.com/cy745/ComfyUI-Use-Easy"
 
 # Used by Comfy Registry https://comfyregistry.org
 [tool.comfy]
-# TODO: replace with your real Publisher ID from https://registry.comfy.org
-PublisherId = "your_publisher_id"
+PublisherId = "lalilu"
 DisplayName = "ComfyUI Use Easy"
 Icon = ""
 # Include the built React extension in the published archive.
