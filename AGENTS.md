@@ -20,9 +20,10 @@ Published to the **Comfy Registry** under publisher `lalilu`. License:
 ```
 AGENTS.md                 # this file
 __init__.py               # exports NODE_CLASS_MAPPINGS + mounts dist/ frontend
-nodes.py                  # backend node classes
+nodes.py                  # backend node classes (ImageCompare is a thin passthrough)
 subgraphs/                # subgraph blueprints
 ui/                       # React+TS frontend source (ui/dist -> ../dist)
+└─ src/imageCompare.ts    # custom node widget: beforeRegisterNodeDef + onDrawForeground
 dist/                     # built frontend (committed so git installs work)
 tests/test_nodes.py       # backend unit tests (stdlib unittest)
 pyproject.toml            # package metadata + [tool.comfy]
@@ -80,6 +81,23 @@ npm test           # frontend unit tests
 > **Critical:** the frontend will not show until `dist/` exists (`npm run
 > build`). Keep `dist/` committed so users can `git clone` and run without
 > building.
+
+## Frontend custom node UI
+
+`ui/src/imageCompare.ts` customizes the `ImageCompare` node's UI. It uses:
+
+- `app.registerExtension({ beforeRegisterNodeDef(nodeType, nodeData, app) })`
+  and guards on `nodeData.name === 'ImageCompare'`.
+- `nodeType.prototype.onDrawForeground` to render the two images from
+  `node.imgs` (one `HTMLImageElement` per IMAGE output) with a draggable divider.
+- `onMouseDown` / `onMouseMove` / `onMouseUp` to drag the divider.
+- The divider position is **transient** (in-memory only, node var like
+  `__useEasySplit`); it never re-runs the backend. The backend is a thin
+  pass-through of the two images.
+- `setDirtyCanvas(true, true)` to trigger a redraw after changes.
+
+`node.imgs` is only populated after the workflow runs once (the IMAGE outputs
+must be computed). Until then the widget draws a "Run the workflow" placeholder.
 
 ## Release / publish spec (MUST follow exactly)
 
@@ -166,6 +184,11 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   A plain `import nodes` fought with `from .nodes import ...` (your own
   `nodes.py` submodule shadowed it) and raised
   `AttributeError: ...ComfyUI-Use-Easy.nodes has no attribute 'EXTENSION_WEB_DIRS'`.
+- **`import { app } from '/scripts/app.js'` needs `// @ts-ignore`.** TypeScript
+  can't resolve the absolute module specifier, but Vite leaves it external
+  (config `external: ['/scripts/app.js', '/scripts/api.js']`) and ComfyUI serves
+  it at runtime. Register extensions this way (at module top level) so
+  `beforeRegisterNodeDef` fires before nodes register.
 - **dist must be built/committed**, or the React UI won't appear when installed.
 - **`.comfyignore`** keeps `tests/` and `ui/node_modules/` out of the published
   archive (good; keep it).

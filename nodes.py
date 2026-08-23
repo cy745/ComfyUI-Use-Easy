@@ -8,41 +8,41 @@ tuple matching ``RETURN_TYPES``.
 
 from __future__ import annotations
 
-import torch
 
+class ImageCompare:
+    """Preview node for side-by-side image comparison.
 
-class UseEasyImageRotate:
-    """Rotate an IMAGE by 90/180/270 degrees using torch.rot90.
-
-    Left as a small, dependency-free example of a backend node so you have a
-    working baseline to expand on (blueprints, more nodes, etc.).
+    The backend only passes the two images through unchanged. All the compare
+    UI (overlay + draggable divider) is rendered by the frontend extension
+    (see ``ui/src/imageCompare.ts``), which reads the node's IMAGE outputs via
+    ``node.imgs``.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),
-                "angle": (["90", "180", "270"], {"default": "90"}),
+                "image_a": ("IMAGE",),
+                "image_b": ("IMAGE",),
             },
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image_out",)
-    FUNCTION = "rotate"
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("image_a", "image_b")
+    FUNCTION = "compare"
     CATEGORY = "UseEasy/image"
 
-    def rotate(self, image: torch.Tensor, angle: str) -> tuple[torch.Tensor]:
-        k = int(angle) // 90
-        return (torch.rot90(image, k=k, dims=[-2, -1]),)
+    def compare(self, image_a, image_b):
+        # Zero computation: just route the two images to the frontend.
+        return (image_a, image_b)
 
 
 NODE_CLASS_MAPPINGS = {
-    "UseEasyImageRotate": UseEasyImageRotate,
+    "ImageCompare": ImageCompare,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "UseEasyImageRotate": "UseEasy Image Rotate",
+    "ImageCompare": "UseEasy Image Compare",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

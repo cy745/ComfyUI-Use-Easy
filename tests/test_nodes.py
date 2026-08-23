@@ -1,4 +1,4 @@
-"""Backend node unit tests (stdlib unittest, no ComfyUI needed).
+"""Backend node unit tests (stdlib unittest, no ComfyUI or torch needed).
 
 Run from the repository root:
 
@@ -12,39 +12,30 @@ import unittest
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.dirname(HERE))
 
-try:
-    import torch
-
-    from nodes import UseEasyImageRotate  # noqa: E402
-
-    HAS_TORCH = True
-except Exception:  # pragma: no cover - CI runners may lack torch
-    torch = None
-    UseEasyImageRotate = None
-    HAS_TORCH = False
+from nodes import ImageCompare  # noqa: E402
 
 
-@unittest.skipUnless(HAS_TORCH, "torch is not installed; skipping backend tests")
-class TestUseEasyImageRotate(unittest.TestCase):
+class TestImageCompare(unittest.TestCase):
     def setUp(self):
-        self.node = UseEasyImageRotate()
+        self.node = ImageCompare()
 
-    def test_angle_90(self):
-        image = torch.arange(4).reshape(1, 2, 2).float()
-        out = self.node.rotate(image, "90")[0]
-        expected = torch.rot90(image, k=1, dims=[-2, -1])
-        self.assertTrue(torch.equal(out, expected))
+    def test_passthrough_returns_both_images(self):
+        image_a = object()
+        image_b = object()
+        out = self.node.compare(image_a, image_b)
+        self.assertEqual(len(out), 2)
+        self.assertIs(out[0], image_a)
+        self.assertIs(out[1], image_b)
 
-    def test_angle_270_is_three_quarter_turn(self):
-        image = torch.arange(6).reshape(1, 2, 3).float()
-        out = self.node.rotate(image, "270")[0]
-        expected = torch.rot90(image, k=3, dims=[-2, -1])
-        self.assertTrue(torch.equal(out, expected))
+    def test_input_types_have_two_images(self):
+        required = ImageCompare.INPUT_TYPES()["required"]
+        self.assertIn("image_a", required)
+        self.assertIn("image_b", required)
+        self.assertEqual(required["image_a"][0], "IMAGE")
+        self.assertEqual(required["image_b"][0], "IMAGE")
 
-    def test_output_type(self):
-        image = torch.zeros(1, 4, 4)
-        out = self.node.rotate(image, "180")[0]
-        self.assertIsInstance(out, torch.Tensor)
+    def test_return_types_two_images(self):
+        self.assertEqual(ImageCompare.RETURN_TYPES, ("IMAGE", "IMAGE"))
 
 
 if __name__ == "__main__":
