@@ -20,15 +20,15 @@ const NODE_CLASS = 'UseEasyMarkdownExport';
 const CLIPBOARD_KEY = 'litegrapheditor_clipboard';
 
 /** Read a widget value by name, falling back to widgets_values by index. */
-function readWidget(node: any, name: string): string {
+function readWidgetValue(node: any, name: string): any {
   const widgets = node.widgets ?? [];
   const index = widgets.findIndex((w: any) => w.name === name);
   if (index >= 0) {
     const value = widgets[index]?.value;
-    if (typeof value === 'string') return value;
+    if (value !== undefined && value !== null) return value;
   }
   const values = node.widgets_values ?? [];
-  return typeof values[index] === 'string' ? values[index] : '';
+  return values[index];
 }
 
 /** Show a toast through whichever API this frontend version supports. */
@@ -50,8 +50,6 @@ function notify(severity: string, summary: string, detail: string) {
 function buildMarkdown(positive: string, negative: string, imageUrls: string[]): string {
   const fence = '````';
   const parts: string[] = [
-    '# UseEasy Prompt Note',
-    '',
     '## 正向提示词 (Positive)',
     '',
     fence,
@@ -122,6 +120,7 @@ app.registerExtension({
     if (node.constructor?.comfyClass !== NODE_CLASS) return;
 
     let imageUrls: string[] = [];
+    let lastWasBase64 = false;
 
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:6px 2px;width:100%;';
@@ -132,8 +131,9 @@ app.registerExtension({
       'width:100%;padding:8px 10px;border:1px solid #4a4a4a;border-radius:6px;' +
       'background:#2b2b2b;color:#eee;font-size:13px;cursor:pointer;';
     button.addEventListener('click', () => {
-      const positive = readWidget(node, 'text_positive');
-      const negative = readWidget(node, 'text_negative');
+      const positive = String(readWidgetValue(node, 'text_positive') ?? '');
+      const negative = String(readWidgetValue(node, 'text_negative') ?? '');
+      const useBase64 = readWidgetValue(node, 'use_base64') === true;
       const markdown = buildMarkdown(positive, negative, imageUrls);
 
       const note = buildMarkdownNoteNode(markdown);
@@ -154,10 +154,24 @@ app.registerExtension({
         // focus is best-effort
       }
 
-      if (imageUrls.length > 0) {
-        notify('success', 'UseEasy', '已复制 Markdown Note：到画布按 Ctrl+V 粘贴（含图片）');
+      if (imageUrls.length === 0) {
+        notify(
+          'info',
+          'UseEasy',
+          '已复制 Markdown Note（未包含图片：请先运行该节点）。到画布 Ctrl+V 粘贴'
+        );
+      } else if (useBase64 && !lastWasBase64) {
+        notify(
+          'info',
+          'UseEasy',
+          '已复制 Markdown Note（当前为链接图片；要内嵌 base64 请开启开关后重新运行）。Ctrl+V 粘贴'
+        );
       } else {
-        notify('info', 'UseEasy', '已复制 Markdown Note（未包含图片：请先运行该节点）。到画布按 Ctrl+V 粘贴');
+        notify(
+          'success',
+          'UseEasy',
+          `已复制 Markdown Note（${lastWasBase64 ? 'base64 512px 图片' : '含图片链接'}）。Ctrl+V 粘贴`
+        );
       }
     });
     el.appendChild(button);
@@ -174,10 +188,19 @@ app.registerExtension({
     const [w, h] = node.size;
     node.setSize([Math.max(w, 340), Math.max(h, 220)]);
 
-    // Cache the /view URLs of the last execution (same data flow as compare).
+    // Cache the last execution's image references (same data flow as compare):
+    // a_base64 -> data URLs, otherwise a_images -> /view URLs.
     const onExecuted = node.onExecuted;
     node.onExecuted = function (this: any, output: any) {
       onExecuted?.call(this, output);
+      if (output?.a_base64?.length) {
+        lastWasBase64 = true;
+        imageUrls = output.a_base64.map(
+          (encoded: string) => `data:image/png;base64,${encoded}`
+        );
+        return;
+      }
+      lastWasBase64 = false;
       const rand = app.getRandParam();
       imageUrls = (output?.a_images ?? []).map((record: Record<string, string>) => {
         return api.apiURL(`/view?${new URLSearchParams(record)}${rand}`);

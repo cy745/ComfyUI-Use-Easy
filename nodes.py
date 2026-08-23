@@ -12,8 +12,12 @@ so the frontend (ui/src/markdownExport.ts) can embed a ``/view`` URL into a
 Markdown Note copied to ComfyUI's clipboard.
 """
 
+import base64
+import io
+
 import nodes
 
+from PIL import Image
 from typing_extensions import override
 
 from comfy_api.latest import IO, ComfyExtension
@@ -56,6 +60,23 @@ class UseEasyImageCompare(IO.ComfyNode):
         return IO.NodeOutput(ui=result)
 
 
+def _encode_png_512(tensor, target_width: int = 512) -> str:
+    """Downscale the first frame to ``target_width`` px and return PNG base64."""
+    array = tensor[0].cpu().numpy()
+    array = (array.clip(0.0, 1.0) * 255.0).round().astype("uint8")
+    mode = "RGBA" if array.shape[2] == 4 else "RGB"
+    image = Image.fromarray(array, mode)
+
+    width, height = image.size
+    if width > target_width:
+        new_height = max(1, round(height * target_width / width))
+        image = image.resize((target_width, new_height), Image.LANCZOS)
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 class UseEasyMarkdownExport(IO.ComfyNode):
     """Exports the prompts and result image into a ComfyUI Markdown Note.
 
@@ -82,19 +103,35 @@ class UseEasyMarkdownExport(IO.ComfyNode):
                 IO.String.Input("text_positive", multiline=True, default=""),
                 IO.String.Input("text_negative", multiline=True, default=""),
                 IO.Image.Input("image", optional=True),
+                IO.Boolean.Input(
+                    "use_base64",
+                    default=False,
+                    label_on="base64 (512px)",
+                    label_off="view URL",
+                    tooltip=(
+                        "When enabled the image is downscaled to 512px wide "
+                        "(aspect preserved) and embedded as a base64 data URL "
+                        "instead of a /view link."
+                    ),
+                ),
             ],
             outputs=[],
         )
 
     @classmethod
-    def execute(cls, text_positive='', text_negative='', image=None) -> IO.NodeOutput:
+    def execute(
+        cls, text_positive='', text_negative='', image=None, use_base64=False
+    ) -> IO.NodeOutput:
         # The prompts are read client-side from the node widgets; only the
-        # image needs the backend to turn it into a viewable /view URL.
-        result = {"a_images": []}
+        # image needs the backend to turn it into something viewable.
+        result = {"a_images": [], "a_base64": []}
 
         if image is not None and len(image) > 0:
-            saved = nodes.PreviewImage().save_images(image, "use_easy.note")
-            result["a_images"] = saved["ui"]["images"]
+            if use_base64:
+                result["a_base64"] = [_encode_png_512(image)]
+            else:
+                saved = nodes.PreviewImage().save_images(image, "use_easy.note")
+                result["a_images"] = saved["ui"]["images"]
 
         return IO.NodeOutput(ui=result)
 

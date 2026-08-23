@@ -76,6 +76,7 @@ class TestUseEasyMarkdownExport(unittest.TestCase):
         self.assertIn("text_positive", ids)
         self.assertIn("text_negative", ids)
         self.assertIn("image", ids)
+        self.assertIn("use_base64", ids)
         self.assertNotIn("export_button", ids)
 
     def test_no_outputs(self):
@@ -84,6 +85,24 @@ class TestUseEasyMarkdownExport(unittest.TestCase):
 
     def test_register_via_entrypoint(self):
         self.assertTrue(callable(_mod.comfy_entrypoint))
+
+    def test_encode_png_512(self):
+        import base64 as _b64
+
+        import torch
+
+        tensor = torch.zeros((1, 2048, 1024, 3))  # 1024x2048 wide image
+        encoded = _mod._encode_png_512(tensor)
+        raw = _b64.b64decode(encoded)
+        self.assertEqual(raw[:8], b"\x89PNG\r\n\x1a\n")
+        # Ensure the width was downscaled to 512 (aspect preserved).
+        from io import BytesIO
+
+        from PIL import Image
+
+        img = Image.open(BytesIO(raw))
+        self.assertEqual(img.size[0], 512)
+        self.assertEqual(img.size[1], 1024)
 
 
 if __name__ == "__main__":
