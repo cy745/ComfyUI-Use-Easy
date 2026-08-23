@@ -41,6 +41,8 @@ app.registerExtension({
     };
 
     nodeType.prototype.onExecuted = async function (this: any, output: any) {
+      // eslint-disable-next-line no-console
+      console.log('[UseEasy][nodeExt] onExecuted fired', JSON.stringify(output?.img_a_filename), JSON.stringify(output?.img_b_filename));
       const aName = output?.img_a_filename?.[0];
       const bName = output?.img_b_filename?.[0];
       if (!aName || !bName) return;
@@ -83,6 +85,8 @@ app.registerExtension({
     };
 
     nodeType.prototype.onDrawForeground = function (this: any, ctx: CanvasRenderingContext2D) {
+      // eslint-disable-next-line no-console
+      console.log('[UseEasy][nodeExt] onDrawForeground called, imgA=', !!this.imgA, 'imgB=', !!this.imgB);
       const [nodeW, nodeH] = this.size;
       const margin = 10;
       const widgetAreaHeight = 111;
