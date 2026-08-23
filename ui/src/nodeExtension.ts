@@ -82,7 +82,6 @@ app.registerExtension({
 
     node.addDOMWidget('compare_view', 'custom', el, {
       getMinHeight: () => 260,
-      getMaxHeight: () => undefined,
     });
 
     // Feed images after execution.

@@ -3,9 +3,9 @@
 This mirrors ComfyUI's native ``ImageCompare`` (comfy_extras/nodes_image_compare.py):
 a Node 2.0 ``IO.ComfyNode`` that saves both input images via
 ``nodes.PreviewImage().save_images`` and returns their references in the ``ui``
-output (``a_images`` / ``b_images``). The frontend extension (ui/src/nodeExtension.ts)
-reads those and feeds the native ``IO.ImageCompare`` Vue widget, which renders the
-interactive slider comparison.
+output (``a_images`` / ``b_images``). The frontend extension
+(ui/src/nodeExtension.ts) reads those refs and mounts a custom draggable DOM
+widget to render the comparison.
 """
 
 import nodes
