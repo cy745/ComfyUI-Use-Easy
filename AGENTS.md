@@ -23,7 +23,7 @@ __init__.py               # exposes comfy_entrypoint + mounts dist/ frontend
 nodes.py                  # Node 2.0 IO node (PreviewImage.save_images -> ui a_images/b_images)
 subgraphs/                # subgraph blueprints
 ui/                       # React+TS frontend source (ui/dist -> ../dist)
-└─ src/nodeExtension.ts   # nodeCreated hook feeds the native IO.ImageCompare Vue widget
+└─ src/nodeExtension.ts   # nodeCreated mounts a draggable DOM widget (addDOMWidget)
 dist/                     # built frontend (committed so git installs work)
 tests/test_nodes.py       # backend unit tests (stdlib unittest)
 pyproject.toml            # package metadata + [tool.comfy]
@@ -37,9 +37,9 @@ LICENSE                   # Apache-2.0
 ## Node contract (backend)
 
 `UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode` (registered via
-`comfy_entrypoint`), not a classic node. Its display uses ComfyUI's native
-`IO.ImageCompare` Vue widget. See "Frontend custom node UI" below. The classic
-contract below applies to any future classic nodes you add.
+`comfy_entrypoint`), not a classic node. Its comparison UI is a custom **DOM
+widget** mounted by the frontend (see "Frontend custom node UI" below). The
+classic contract below applies to any future classic nodes you add.
 
 Follow the standard ComfyUI custom-node contract in `nodes.py`:
 
@@ -89,34 +89,30 @@ npm test           # frontend unit tests
 
 ## Frontend custom node UI
 
-`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode` that renders with
-ComfyUI's **native `IO.ImageCompare` Vue widget** (an interactive slider). This
-works under ComfyUI's Node 2.0 rendering, where the classic
-`onDrawForeground` / `onMouseMove` canvas hooks are NOT called.
+`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode`. Under Node 2.0 the
+classic `onDrawForeground` / `onMouseMove` canvas hooks are **not** called, so
+we render the comparison with a **DOM widget** mounted via `node.addDOMWidget`
+(`ui/src/nodeExtension.ts`, `nodeCreated` hook). DOM pointer events work under
+Node 2.0, giving a real **drag** (pointerdown → move → up), no hover-follow.
 
-The data flow (mirrors ComfyUI's own `Compare Images` node):
-
+Data flow:
 1. **Backend** (`nodes.py`) saves both images via
-   `nodes.PreviewImage().save_images(...)` and returns their references in the
+   `nodes.PreviewImage().save_images(...)` and returns references in the
    `ui` output:
    ```python
    return IO.NodeOutput(ui={"a_images": [...], "b_images": [...]})
    ```
-2. **Frontend** (`ui/src/nodeExtension.ts`) registers a `nodeCreated` hook that,
-   for `node.constructor.comfyClass === 'UseEasyImageCompare'`, intercepts
-   `onExecuted`, reads `a_images`/`b_images`, builds `/view` URLs, and sets the
-   `imagecompare`-type widget's value to `{ beforeImages, afterImages }`:
-   ```ts
-   const widget = node.widgets?.find((w) => w.type === 'imagecompare')
-   if (widget) { widget.value = { beforeImages, afterImages }; widget.callback?.(widget.value) }
-   ```
+2. **Frontend** `nodeCreated` builds a DOM element (two `<img>` + a handle line)
+   and adds it via `addDOMWidget`. `onExecuted` reads `a_images`/`b_images`,
+   builds `/view` URLs (`api.apiURL('/view?...') + app.getRandParam()`), sets the
+   two `<img>` `src`s, and CSS `clip-path` splits left/right. Pointer drag moves
+   the split live.
 
-> **Key gotcha:** ComfyUI's core `imageCompare.ts` only feeds the widget for the
-> built-in `ImageCompare` node (`nodeCreated` checks `comfyClass ===
-> 'ImageCompare'`). A custom node with a different class MUST provide its own
-> `nodeCreated` / `onExecuted` hook to set the widget value, or the slider stays
-> empty ("no images to compare"). Also, the node must be registered via
-> `comfy_entrypoint` (see below), or the Node 2.0 widget won't render.
+> **Key gotchas:** (1) register the node via `comfy_entrypoint` (and do **not**
+> define `NODE_CLASS_MAPPINGS` in `__init__.py`), or the Node 2.0 node won't
+> render. (2) We deliberately do NOT reuse ComfyUI's native `IO.ImageCompare`
+> widget — its `WidgetImageCompare.vue` is hover-follow (a bug we wanted to
+> avoid). Instead we mount our own DOM widget for correct drag behavior.
 
 ## Release / publish spec (MUST follow exactly)
 

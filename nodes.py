@@ -23,7 +23,7 @@ class UseEasyImageCompare(IO.ComfyNode):
         return IO.Schema(
             node_id="UseEasyImageCompare",
             display_name="UseEasy Image Compare",
-            description="Compares two images side by side with a slider.",
+            description="Compares two images with a draggable slider.",
             category="UseEasy",
             essentials_category="Image Tools",
             is_experimental=False,
@@ -31,13 +31,12 @@ class UseEasyImageCompare(IO.ComfyNode):
             inputs=[
                 IO.Image.Input("image_a", optional=True),
                 IO.Image.Input("image_b", optional=True),
-                IO.ImageCompare.Input("compare_view"),
             ],
             outputs=[],
         )
 
     @classmethod
-    def execute(cls, image_a=None, image_b=None, compare_view=None) -> IO.NodeOutput:
+    def execute(cls, image_a=None, image_b=None) -> IO.NodeOutput:
         result = {"a_images": [], "b_images": []}
 
         preview_node = nodes.PreviewImage()

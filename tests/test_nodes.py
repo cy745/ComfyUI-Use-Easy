@@ -42,12 +42,12 @@ class TestUseEasyImageCompare(unittest.TestCase):
         schema = UseEasyImageCompare.define_schema()
         self.assertTrue(schema.is_output_node)
 
-    def test_inputs_have_images_and_compare_view(self):
+    def test_inputs_have_two_images(self):
         schema = UseEasyImageCompare.define_schema()
         ids = [input.id for input in schema.inputs]
         self.assertIn("image_a", ids)
         self.assertIn("image_b", ids)
-        self.assertIn("compare_view", ids)
+        self.assertNotIn("compare_view", ids)
 
     def test_comfy_entrypoint(self):
         self.assertTrue(callable(_mod.comfy_entrypoint))
