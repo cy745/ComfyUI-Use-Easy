@@ -21,9 +21,11 @@ try:
 
     _mod = importlib.import_module("nodes")
     UseEasyImageCompare = _mod.UseEasyImageCompare
+    UseEasyMarkdownExport = _mod.UseEasyMarkdownExport
     HAS = True
 except Exception:  # pragma: no cover
     UseEasyImageCompare = None
+    UseEasyMarkdownExport = None
     HAS = False
 
 
@@ -50,6 +52,37 @@ class TestUseEasyImageCompare(unittest.TestCase):
         self.assertNotIn("compare_view", ids)
 
     def test_comfy_entrypoint(self):
+        self.assertTrue(callable(_mod.comfy_entrypoint))
+
+
+@unittest.skipUnless(HAS, "ComfyUI comfy_api not available; skipping")
+class TestUseEasyMarkdownExport(unittest.TestCase):
+    def test_schema_node_id(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        self.assertEqual(schema.node_id, "UseEasyMarkdownExport")
+
+    def test_schema_display_and_category(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        self.assertEqual(schema.display_name, "UseEasy Markdown Export")
+        self.assertEqual(schema.category, "UseEasy")
+
+    def test_is_output_node(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        self.assertTrue(schema.is_output_node)
+
+    def test_inputs(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        ids = [input.id for input in schema.inputs]
+        self.assertIn("text_positive", ids)
+        self.assertIn("text_negative", ids)
+        self.assertIn("image", ids)
+        self.assertNotIn("export_button", ids)
+
+    def test_no_outputs(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        self.assertEqual(schema.outputs, [])
+
+    def test_register_via_entrypoint(self):
         self.assertTrue(callable(_mod.comfy_entrypoint))
 
 

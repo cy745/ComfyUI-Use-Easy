@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import './index.css'
 import './utils/i18n'
 import './nodeExtension'
+import './markdownExport'
 
 // Declare global ComfyUI objects
 declare global {
