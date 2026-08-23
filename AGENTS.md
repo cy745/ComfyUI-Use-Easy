@@ -29,7 +29,8 @@ pyproject.toml            # package metadata + [tool.comfy]
 requirements.txt
 LICENSE                   # Apache-2.0
 .comfyignore              # files excluded from the published archive
-.github/workflows/react-build.yml  # build UI + auto-publish
+.github/workflows/ci.yml       # push/PR to main: build + test (never publishes)
+.github/workflows/release.yml  # tag vX.Y.Z: build UI + publish to Comfy Registry
 ```
 
 ## Node contract (backend)
@@ -99,15 +100,24 @@ comfy node validate
 
 This runs security + config checks and must pass before publishing.
 
-### 3. Publishing — two equivalent paths
+### 3. Publishing — two paths (publish is tag-gated)
 
 - **Manual** (one-off): from the repo root
   ```bash
   comfy node publish --token <REGISTRY_API_KEY>
   ```
-- **Automated (preferred)**: bump `version`, then push to `main`. The GitHub
-  Action (`.github/workflows/react-build.yml`) builds `ui/` and auto-publishes.
-  It triggers on changes to `pyproject.toml`, `ui/**`, or `.github/workflows/**`.
+- **Automated (preferred) — only on a version tag.** Regular pushes to `main`
+  run `.github/workflows/ci.yml` (build + tests) and **never publish**. To
+  publish:
+  1. Bump `version` in `pyproject.toml`, commit, and push to `main` (CI green).
+  2. Create and push a matching semantic version tag:
+     ```bash
+     git tag v0.1.2 && git push origin v0.1.2
+     ```
+  3. `.github/workflows/release.yml` (triggers on `vX.Y.Z` tags) builds `ui/`,
+     **verifies the tag matches the pyproject `version`**, then publishes.
+
+  Tag and pyproject `version` must agree; `release.yml` fails loudly otherwise.
 
 ### 4. Registry metadata
 
@@ -163,11 +173,13 @@ routes. If a future ComfyUI changes the frontend extension mechanism, verify:
 - `nodes.EXTENSION_WEB_DIRS[project_name]` is still the correct hook, and
 - the built routes (`/use_easy/`, `/locales/`) still resolve.
 
-## Release checklist (before you push)
+## Release checklist (before you release)
 
 - [ ] `comfy node validate` passes
-- [ ] `version` bumped in `pyproject.toml`
+- [ ] `version` bumped in `pyproject.toml`, committed and pushed to `main`
+  (`ci.yml` turns green; no publish happens here)
 - [ ] `cd ui && npm run build` produced `dist/` (if frontend changed)
-- [ ] commit + push → watch the GitHub Action turn green
+- [ ] create tag `v<version>` and push it (`git tag v0.1.2 && git push origin v0.1.2`)
+  → `release.yml` builds and publishes
 - [ ] confirm the node is in the registry:
   `https://api.comfy.org/nodes/comfyui_use_easy`

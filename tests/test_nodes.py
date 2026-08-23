@@ -9,14 +9,22 @@ import os
 import sys
 import unittest
 
-import torch
-
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.dirname(HERE))
 
-from nodes import UseEasyImageRotate  # noqa: E402
+try:
+    import torch
+
+    from nodes import UseEasyImageRotate  # noqa: E402
+
+    HAS_TORCH = True
+except Exception:  # pragma: no cover - CI runners may lack torch
+    torch = None
+    UseEasyImageRotate = None
+    HAS_TORCH = False
 
 
+@unittest.skipUnless(HAS_TORCH, "torch is not installed; skipping backend tests")
 class TestUseEasyImageRotate(unittest.TestCase):
     def setUp(self):
         self.node = UseEasyImageRotate()

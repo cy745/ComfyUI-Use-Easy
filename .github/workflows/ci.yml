@@ -1,12 +1,11 @@
-name: Build UI + Publish to Comfy Registry
+name: CI (build + test, no publish)
 
+# Runs on every push/PR to main to validate the codebase. Never publishes.
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'pyproject.toml'
-      - 'ui/**'
-      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -34,8 +33,12 @@ jobs:
         cd ui
         npm run build
 
-    - name: Publish Custom Node
-      uses: Comfy-Org/publish-node-action@main
-      with:
-        personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
-        skip_checkout: 'true'
+    - name: Frontend unit tests
+      run: |
+        cd ui
+        npm test
+
+    # Backend tests skip automatically when torch is unavailable on the runner.
+    - name: Backend unit tests
+      run: |
+        python -m unittest discover -s tests -v
