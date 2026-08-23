@@ -60,8 +60,16 @@ class UseEasyImageCompare(IO.ComfyNode):
         return IO.NodeOutput(ui=result)
 
 
-def _encode_png_512(tensor, target_width: int = 512) -> str:
-    """Downscale the first frame to ``target_width`` px and return PNG base64."""
+def _encode_webp_512(tensor, target_width: int = 512) -> str:
+    """Downscale the first frame to ``target_width`` px and return WebP base64.
+
+    WebP (lossy, quality 90) keeps the markdown note small: at 512px wide a
+    photo-like image is ~56 KB vs ~404 KB as PNG. Big payloads are a real
+    problem because the note text is stored inside the workflow draft, and
+    those drafts live in localStorage (shared ~5 MB quota) - a single large
+    PNG base64 can overflow it and trigger endless "save workflow draft
+    failed" toasts.
+    """
     array = tensor[0].cpu().numpy()
     array = (array.clip(0.0, 1.0) * 255.0).round().astype("uint8")
     mode = "RGBA" if array.shape[2] == 4 else "RGB"
@@ -73,7 +81,7 @@ def _encode_png_512(tensor, target_width: int = 512) -> str:
         image = image.resize((target_width, new_height), Image.LANCZOS)
 
     buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
+    image.save(buffer, format="WEBP", quality=90)
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
@@ -110,8 +118,9 @@ class UseEasyMarkdownExport(IO.ComfyNode):
                     label_off="view URL",
                     tooltip=(
                         "When enabled the image is downscaled to 512px wide "
-                        "(aspect preserved) and embedded as a base64 data URL "
-                        "instead of a /view link."
+                        "(aspect preserved) and embedded as a base64 WebP data "
+                        "URL instead of a /view link (WebP keeps the workflow "
+                        "draft small)."
                     ),
                 ),
             ],
@@ -128,7 +137,7 @@ class UseEasyMarkdownExport(IO.ComfyNode):
 
         if image is not None and len(image) > 0:
             if use_base64:
-                result["a_base64"] = [_encode_png_512(image)]
+                result["a_base64"] = [_encode_webp_512(image)]
             else:
                 saved = nodes.PreviewImage().save_images(image, "use_easy.note")
                 result["a_images"] = saved["ui"]["images"]

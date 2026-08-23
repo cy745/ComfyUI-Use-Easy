@@ -196,7 +196,7 @@ app.registerExtension({
       if (output?.a_base64?.length) {
         lastWasBase64 = true;
         imageUrls = output.a_base64.map(
-          (encoded: string) => `data:image/png;base64,${encoded}`
+          (encoded: string) => `data:image/webp;base64,${encoded}`
         );
         return;
       }

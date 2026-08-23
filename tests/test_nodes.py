@@ -86,15 +86,17 @@ class TestUseEasyMarkdownExport(unittest.TestCase):
     def test_register_via_entrypoint(self):
         self.assertTrue(callable(_mod.comfy_entrypoint))
 
-    def test_encode_png_512(self):
+    def test_encode_webp_512(self):
         import base64 as _b64
 
         import torch
 
         tensor = torch.zeros((1, 2048, 1024, 3))  # 1024x2048 wide image
-        encoded = _mod._encode_png_512(tensor)
+        encoded = _mod._encode_webp_512(tensor)
         raw = _b64.b64decode(encoded)
-        self.assertEqual(raw[:8], b"\x89PNG\r\n\x1a\n")
+        # WebP container magic: RIFF....WEBP
+        self.assertEqual(raw[:4], b"RIFF")
+        self.assertEqual(raw[8:12], b"WEBP")
         # Ensure the width was downscaled to 512 (aspect preserved).
         from io import BytesIO
 
