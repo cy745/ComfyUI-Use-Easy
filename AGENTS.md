@@ -184,6 +184,13 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   A plain `import nodes` fought with `from .nodes import ...` (your own
   `nodes.py` submodule shadowed it) and raised
   `AttributeError: ...ComfyUI-Use-Easy.nodes has no attribute 'EXTENSION_WEB_DIRS'`.
+- **Node class names must be globally unique.** The `NODE_CLASS_MAPPINGS` key
+  (the Python class name) is a global registry — if another installed custom
+  node already uses the same name, whichever loads last silently overwrites the
+  other. Symptom: your node/category vanishes and the colliding node's def shows
+  under the shared name. Pick a namespaced name (e.g. `UseEasyImageCompare`,
+  not `ImageCompare`) and check `http://127.0.0.1:8188/object_info/<YourName>`
+  after restart.
 - **`import { app } from '/scripts/app.js'` needs `// @ts-ignore`.** TypeScript
   can't resolve the absolute module specifier, but Vite leaves it external
   (config `external: ['/scripts/app.js', '/scripts/api.js']`) and ComfyUI serves
