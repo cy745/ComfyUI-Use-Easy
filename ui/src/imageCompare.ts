@@ -120,6 +120,8 @@ app.registerExtension({
     // Called when the node finishes executing. ComfyUI hands us the output image
     // metadata keyed by output name (image_a / image_b here).
     nodeType.prototype.onExecuted = function (this: CompareNode, output: any) {
+      // eslint-disable-next-line no-console
+      console.log('[UseEasy] onExecuted output keys:', output ? Object.keys(output) : null, output?.image_a?.[0], output?.image_b?.[0]);
       const collect = (v: any): any[] => (Array.isArray(v) && v.length ? v : []);
       let a = collect(output?.image_a) || collect(output?.a_images);
       let b = collect(output?.image_b) || collect(output?.b_images);
