@@ -11,6 +11,7 @@ import { app } from '/scripts/app.js';
 const NODE_NAME = 'UseEasyImageCompare';
 
 interface CompareNode {
+  id: string | number;
   __useEasySplit: number;
   __useEasyDragging: boolean;
   __useEasyLoading: boolean;
