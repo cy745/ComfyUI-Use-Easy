@@ -1,6 +1,6 @@
 """ComfyUI-Use-Easy custom node entry point.
 
-Registers the Node 2.0 IO nodes (``nodes.py``) via ``comfy_entrypoint`` and
+Registers the backend nodes (``nodes.py``) via ``NODE_CLASS_MAPPINGS`` and
 mounts the built React frontend (``dist/``) so the sidebar extension UI is
 served by the ComfyUI server.
 """
@@ -11,9 +11,9 @@ import nodes as comfy_nodes
 import server
 from aiohttp import web
 
-from .nodes import comfy_entrypoint
+from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
-__all__ = ["comfy_entrypoint"]
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 
 workspace_path = os.path.dirname(__file__)
 dist_path = os.path.join(workspace_path, "dist/use_easy")
