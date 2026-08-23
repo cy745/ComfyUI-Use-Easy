@@ -23,7 +23,8 @@ class UseEasyImageCompare(IO.ComfyNode):
             display_name="UseEasy Image Compare",
             description="Compares two images side by side with a slider.",
             category="UseEasy",
-            is_experimental=False,
+            essentials_category="Image Tools",
+            is_experimental=True,
             is_output_node=True,
             inputs=[
                 IO.Image.Input("image_a", optional=True),
