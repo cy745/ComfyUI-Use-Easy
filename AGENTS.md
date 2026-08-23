@@ -160,6 +160,12 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   `gh auth refresh -h github.com -s workflow` and retry.
 - **Secret newline bug:** see CI secret note above. A trailing newline makes the
   token invalid even though the same token works locally.
+- **Name collisions in `__init__.py`.** ComfyUI exposes a top-level `nodes`
+  module that holds `EXTENSION_WEB_DIRS`. Import it aliased
+  (`import nodes as comfy_nodes`) and use `comfy_nodes.EXTENSION_WEB_DIRS`.
+  A plain `import nodes` fought with `from .nodes import ...` (your own
+  `nodes.py` submodule shadowed it) and raised
+  `AttributeError: ...ComfyUI-Use-Easy.nodes has no attribute 'EXTENSION_WEB_DIRS'`.
 - **dist must be built/committed**, or the React UI won't appear when installed.
 - **`.comfyignore`** keeps `tests/` and `ui/node_modules/` out of the published
   archive (good; keep it).

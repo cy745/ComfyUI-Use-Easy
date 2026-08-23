@@ -7,7 +7,7 @@ frontend (``dist/``) so the extension UI is served by the ComfyUI server.
 import os
 
 import folder_paths
-import nodes
+import nodes as comfy_nodes
 import server
 from aiohttp import web
 
@@ -37,7 +37,7 @@ if os.path.exists(dist_path):
     except Exception as exc:
         print(f"[ComfyUI-Use-Easy] fell back to folder name for project: {exc}")
 
-    nodes.EXTENSION_WEB_DIRS[project_name] = os.path.join(workspace_path, "dist")
+    comfy_nodes.EXTENSION_WEB_DIRS[project_name] = os.path.join(workspace_path, "dist")
 else:
     print(
         "[ComfyUI-Use-Easy] dist/ not found. Run `cd ui && npm install && npm run build` "
