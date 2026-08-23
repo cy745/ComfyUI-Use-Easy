@@ -1,0 +1,3 @@
+# Python runtime dependencies.
+# The sample nodes use torch, which ComfyUI already provides. Add anything extra
+# here; ComfyUI merges these into the package's dependencies on publish.

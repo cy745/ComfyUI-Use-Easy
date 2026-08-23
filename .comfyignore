@@ -1,0 +1,7 @@
+# Excluded from the published node archive (Comfy Registry via `comfy node publish`).
+# Syntax matches .gitignore. Source still lives in the git repo.
+tests/
+ui/node_modules/
+.vscode/
+.claude/
+*.log

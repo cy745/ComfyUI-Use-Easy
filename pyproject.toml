@@ -1,0 +1,18 @@
+[project]
+name = "comfyui_use_easy"
+description = "A standards-compliant ComfyUI custom-node starting point with backend nodes, subgraph blueprints, and a React/TypeScript frontend extension."
+version = "0.1.0"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/cy745/ComfyUI-Use-Easy"
+
+# Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+# TODO: replace with your real Publisher ID from https://registry.comfy.org
+PublisherId = "your_publisher_id"
+DisplayName = "ComfyUI Use Easy"
+Icon = ""
+# Include the built React extension in the published archive.
+includes = ["dist/"]
