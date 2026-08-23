@@ -79,6 +79,12 @@ class TestUseEasyMarkdownExport(unittest.TestCase):
         self.assertIn("use_base64", ids)
         self.assertNotIn("export_button", ids)
 
+    def test_text_inputs_force_link(self):
+        schema = UseEasyMarkdownExport.define_schema()
+        for inp in schema.inputs:
+            if inp.id in ("text_positive", "text_negative"):
+                self.assertTrue(inp.force_input)
+
     def test_no_outputs(self):
         schema = UseEasyMarkdownExport.define_schema()
         self.assertEqual(schema.outputs, [])

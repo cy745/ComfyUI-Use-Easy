@@ -108,8 +108,28 @@ class UseEasyMarkdownExport(IO.ComfyNode):
             is_experimental=False,
             is_output_node=True,
             inputs=[
-                IO.String.Input("text_positive", multiline=True, default=""),
-                IO.String.Input("text_negative", multiline=True, default=""),
+                IO.String.Input(
+                    "text_positive",
+                    display_name="正向提示词 (positive)",
+                    multiline=True,
+                    default="",
+                    optional=True,
+                    force_input=True,
+                    tooltip=(
+                        "Positive prompt. Connect any STRING output (e.g. "
+                        "easy positive / GetNode) to receive it; leave "
+                        "unconnected for an empty prompt."
+                    ),
+                ),
+                IO.String.Input(
+                    "text_negative",
+                    display_name="负向提示词 (negative)",
+                    multiline=True,
+                    default="",
+                    optional=True,
+                    force_input=True,
+                    tooltip="Negative prompt; same connection behavior as the positive prompt.",
+                ),
                 IO.Image.Input("image", optional=True),
                 IO.Boolean.Input(
                     "use_base64",

@@ -31,6 +31,38 @@ function readWidgetValue(node: any, name: string): any {
   return values[index];
 }
 
+/**
+ * Read the value of a text input. When the input is connected (link input),
+ * follow the link upstream and extract the source node's string value (its
+ * matching widget, named widget value, or first string widget). Otherwise fall
+ * back to the node's own widget (legacy / unconnected).
+ */
+function readTextInput(node: any, inputName: string): string {
+  const input = (node.inputs ?? []).find((i: any) => i.name === inputName);
+  const linkId = input?.link;
+  if (linkId != null && node.graph) {
+    const graph = node.graph;
+    const link = graph._links?.get
+      ? graph._links.get(linkId)
+      : graph._links?.[linkId] ?? graph.links?.[linkId];
+    if (link?.origin_id != null) {
+      const originNode = graph.getNodeById?.(Number(link.origin_id)) ?? graph.getNodeById?.(link.origin_id);
+      if (originNode) {
+        const output = originNode.outputs?.[link.origin_slot];
+        const byName = (originNode.widgets ?? []).find(
+          (w: any) => w.name === output?.name || w.name === output?.display_name
+        );
+        if (byName && typeof byName.value === 'string') return byName.value;
+        const named = originNode.widgets_values_named?.[output?.name];
+        if (typeof named === 'string') return named;
+        const firstString = (originNode.widgets ?? []).find((w: any) => typeof w.value === 'string');
+        if (firstString) return String(firstString.value ?? '');
+      }
+    }
+  }
+  return String(readWidgetValue(node, inputName) ?? '');
+}
+
 /** Show a toast through whichever API this frontend version supports. */
 function notify(severity: string, summary: string, detail: string) {
   const ext = (app as any).extensionManager;
@@ -131,9 +163,10 @@ app.registerExtension({
       'width:100%;padding:8px 10px;border:1px solid #4a4a4a;border-radius:6px;' +
       'background:#2b2b2b;color:#eee;font-size:13px;cursor:pointer;';
     button.addEventListener('click', () => {
-      const positive = String(readWidgetValue(node, 'text_positive') ?? '');
-      const negative = String(readWidgetValue(node, 'text_negative') ?? '');
+      const positive = readTextInput(node, 'text_positive');
+      const negative = readTextInput(node, 'text_negative');
       const useBase64 = readWidgetValue(node, 'use_base64') === true;
+      const noPrompt = !positive.trim() && !negative.trim();
       const markdown = buildMarkdown(positive, negative, imageUrls);
 
       const note = buildMarkdownNoteNode(markdown);
@@ -173,11 +206,18 @@ app.registerExtension({
           `已复制 Markdown Note（${lastWasBase64 ? 'base64 512px 图片' : '含图片链接'}）。Ctrl+V 粘贴`
         );
       }
+      if (noPrompt) {
+        notify(
+          'warn',
+          'UseEasy',
+          '提示词为空：请把文本连线到“正向提示词/负向提示词”输入（如 easy positive 输出），或填写文本内容后再复制'
+        );
+      }
     });
     el.appendChild(button);
 
     const hint = document.createElement('div');
-    hint.textContent = '点击按钮 → 到画布 Ctrl+V 粘贴出 Markdown Note';
+    hint.textContent = '提示词可连线文本源（如 easy positive），或直接填写；点击后 Ctrl+V 粘贴出 Markdown Note';
     hint.style.cssText = 'font-size:11px;color:#888;text-align:center;';
     el.appendChild(hint);
 
