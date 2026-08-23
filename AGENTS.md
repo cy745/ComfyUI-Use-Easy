@@ -89,7 +89,16 @@ npm test           # frontend unit tests
 
 ## Frontend custom node UI
 
-`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode`. Under Node 2.0 the
+### Guiding principle (MUST follow)
+
+**For any custom UI node, use the custom DOM/Vue widget approach (`addDOMWidget`)
+as the default — never rely on the classic `onDrawForeground` / node-level
+`onMouseMove`/`onMouseDown` canvas hooks.** Under ComfyUI's Node 2.0 rendering
+those canvas hooks are simply not called. A DOM widget's own `pointerdown/move/up`
+events work under Node 2.0 and let you control the interaction (e.g. *drag*
+instead of hover-follow).
+
+`UseEasyImageCompare` is the reference implementation. Under Node 2.0 the
 classic `onDrawForeground` / `onMouseMove` canvas hooks are **not** called, so
 we render the comparison with a **DOM widget** mounted via `node.addDOMWidget`
 (`ui/src/nodeExtension.ts`, `nodeCreated` hook). DOM pointer events work under
@@ -206,13 +215,33 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   under the shared name. Pick a namespaced name (e.g. `UseEasyImageCompare`,
   not `ImageCompare`) and check `http://127.0.0.1:8188/object_info/<YourName>`
   after restart.
+- **Custom UI nodes: use a DOM widget (`addDOMWidget`), never `onDrawForeground` /
+  node `onMouseMove`/`onMouseDown`.** Under ComfyUI's **Node 2.0 rendering** those
+  classic canvas hooks are **not called at all** (symptom: the node draws nothing,
+  even though `onExecuted` fires). `addDOMWidget` mounts a real HTML element whose
+  `pointerdown/move/up` events DO work — that's how we get real *drag* interaction.
+  Register the widget in the `nodeCreated` extension hook.
+- **Avoid ComfyUI's native `IO.ImageCompare` widget.** Its `WidgetImageCompare.vue`
+  is **hover-follow** (it snaps to the mouse on hover; no drag) — a bug also present
+  in the official `Compare Images` node. If you want a *drag* comparison, mount your
+  own DOM widget instead (see `ui/src/nodeExtension.ts`).
 - **Register a Node 2.0 `IO.ComfyNode` via `comfy_entrypoint`.** Expose
   `async def comfy_entrypoint()` returning a `ComfyExtension`, and have
   `__init__.py` re-export it — **do not** define `NODE_CLASS_MAPPINGS` in
-  `__init__.py` (if you do, ComfyUI takes the classic branch and the Node 2.0
-  widget won't render). And for the `IO.ImageCompare` widget to receive images,
-  provide a `nodeCreated` hook that sets the widget value (core only does this
-  for the built-in `ImageCompare` class).
+  `__init__.py` (if you do, ComfyUI takes the classic branch and the Node 2.0 node
+  won't render/register properly).
+- **Image-ref data flow.** Backend `nodes.PreviewImage().save_images(...)` then
+  return refs in the `ui` output (`a_images`/`b_images`); the frontend reads them
+  in `onExecuted` (fires under Node 2.0), builds `/view` URLs with
+  `api.apiURL('/view?<record><rand>')` + `app.getRandParam()`, and sets `<img>.src`.
+  This is the reliable way to show node output images.
+- **Overriding `onNodeCreated` without recursion.** **Capture the previous handler
+  BEFORE overriding** and call it — referencing `nodeType.prototype.onNodeCreated`
+  from inside the override calls *yourself* and loops (we hit `too much recursion`
+  when three extensions wrapped the same method).
+- **`// @ts-ignore` on `/scripts/app.js` and `/scripts/api.js`.** Vite leaves these
+  external (config `external: [...]`) and ComfyUI serves them at runtime, but
+  TypeScript can't resolve the absolute specifier.
 - **dist must be built/committed**, or the React UI won't appear when installed.
 - **`.comfyignore`** keeps `tests/` and `ui/node_modules/` out of the published
   archive (good; keep it).
