@@ -1,48 +1,65 @@
-"""Backend node definitions for ComfyUI-Use-Easy.
+"""Backend IO (Node 2.0) node definitions for ComfyUI-Use-Easy.
 
-The classes here follow the standard ComfyUI custom-node contract:
-``INPUT_TYPES`` (required/optional/hidden) + ``RETURN_TYPES`` /
-``RETURN_NAMES`` / ``CATEGORY`` / ``FUNCTION``, where the function returns a
-tuple matching ``RETURN_TYPES``.
+This node mirrors ComfyUI's native ``ImageCompare`` (``comfy_extras/nodes_image_compare.py``),
+which renders a slider comparison using the Node 2.0 ``IO.ImageCompare`` widget.
+That frontend path reliably displays images, unlike the legacy custom-canvas-widget
+mechanism, so we adopt it under a unique node id.
 """
 
-from __future__ import annotations
+import nodes
+
+from typing_extensions import override
+
+from comfy_api.latest import IO, ComfyExtension
 
 
-class UseEasyImageCompare:
-    """Preview node for side-by-side image comparison.
-
-    The backend only passes the two images through unchanged. All the compare
-    UI (overlay + draggable divider) is rendered by the frontend extension
-    (see ``ui/src/imageCompare.ts``), which reads the node's IMAGE outputs via
-    ``node.imgs``.
-    """
+class UseEasyImageCompare(IO.ComfyNode):
+    """Compares two images with a slider interface."""
 
     @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image_a": ("IMAGE",),
-                "image_b": ("IMAGE",),
-            },
-        }
+    def define_schema(cls):
+        return IO.Schema(
+            node_id="UseEasyImageCompare",
+            display_name="UseEasy Image Compare",
+            description="Compares two images side by side with a slider.",
+            category="UseEasy",
+            is_experimental=False,
+            is_output_node=True,
+            inputs=[
+                IO.Image.Input("image_a", optional=True),
+                IO.Image.Input("image_b", optional=True),
+                IO.ImageCompare.Input("compare_view"),
+            ],
+            outputs=[],
+        )
 
-    RETURN_TYPES = ("IMAGE", "IMAGE")
-    RETURN_NAMES = ("image_a", "image_b")
-    FUNCTION = "compare"
-    CATEGORY = "UseEasy/image"
+    @classmethod
+    def execute(cls, image_a=None, image_b=None, compare_view=None) -> IO.NodeOutput:
+        result = {"a_images": [], "b_images": []}
 
-    def compare(self, image_a, image_b):
-        # Zero computation: just route the two images to the frontend.
-        return (image_a, image_b)
+        preview_node = nodes.PreviewImage()
+
+        if image_a is not None and len(image_a) > 0:
+            saved = preview_node.save_images(image_a, "use_easy.compare.a")
+            result["a_images"] = saved["ui"]["images"]
+
+        if image_b is not None and len(image_b) > 0:
+            saved = preview_node.save_images(image_b, "use_easy.compare.b")
+            result["b_images"] = saved["ui"]["images"]
+
+        return IO.NodeOutput(ui=result)
 
 
-NODE_CLASS_MAPPINGS = {
-    "UseEasyImageCompare": UseEasyImageCompare,
-}
+class UseEasyImageCompareExtension(ComfyExtension):
+    @override
+    async def get_node_list(self) -> list[type[IO.ComfyNode]]:
+        return [
+            UseEasyImageCompare,
+        ]
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "UseEasyImageCompare": "UseEasy Image Compare",
-}
 
-__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
+async def comfy_entrypoint() -> UseEasyImageCompareExtension:
+    return UseEasyImageCompareExtension()
+
+
+__all__ = ["UseEasyImageCompare", "comfy_entrypoint"]

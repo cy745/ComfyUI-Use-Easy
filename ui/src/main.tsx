@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 
 import './index.css'
 import './utils/i18n'
-import './imageCompare'
 
 // Declare global ComfyUI objects
 declare global {

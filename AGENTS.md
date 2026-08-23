@@ -19,11 +19,10 @@ Published to the **Comfy Registry** under publisher `lalilu`. License:
 
 ```
 AGENTS.md                 # this file
-__init__.py               # exports NODE_CLASS_MAPPINGS + mounts dist/ frontend
-nodes.py                  # backend node classes (UseEasyImageCompare is a thin passthrough)
+__init__.py               # exposes comfy_entrypoint + mounts dist/ frontend
+nodes.py                  # Node 2.0 IO nodes (UseEasyImageCompare uses ComfyUI's IO.ImageCompare widget)
 subgraphs/                # subgraph blueprints
 ui/                       # React+TS frontend source (ui/dist -> ../dist)
-└─ src/imageCompare.ts    # custom node widget: beforeRegisterNodeDef + onDrawForeground
 dist/                     # built frontend (committed so git installs work)
 tests/test_nodes.py       # backend unit tests (stdlib unittest)
 pyproject.toml            # package metadata + [tool.comfy]
@@ -35,6 +34,11 @@ LICENSE                   # Apache-2.0
 ```
 
 ## Node contract (backend)
+
+This repo's single node, `UseEasyImageCompare`, is a **Node 2.0** `IO.ComfyNode`
+(see "Frontend custom node UI" below), not a classic node. The classic
+`@classmethod INPUT_TYPES` / `RETURN_TYPES` contract below applies to any future
+classic nodes you add.
 
 Follow the standard ComfyUI custom-node contract in `nodes.py`:
 
@@ -84,20 +88,27 @@ npm test           # frontend unit tests
 
 ## Frontend custom node UI
 
-`ui/src/imageCompare.ts` customizes the `UseEasyImageCompare` node's UI. It uses:
+`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode` (mirrors ComfyUI's native
+`Compare Images`). It declares an `IO.ImageCompare.Input("compare_view")`
+(socketless widget), and its `execute` saves the two images via
+`nodes.PreviewImage().save_images(...)` and returns them in the **`ui` output**
 
-- `app.registerExtension({ beforeRegisterNodeDef(nodeType, nodeData, app) })`
-  and guards on `nodeData.name === 'UseEasyImageCompare'`.
-- `nodeType.prototype.onDrawForeground` to render the two images from
-  `node.imgs` (one `HTMLImageElement` per IMAGE output) with a draggable divider.
-- `onMouseDown` / `onMouseMove` / `onMouseUp` to drag the divider.
-- The divider position is **transient** (in-memory only, node var like
-  `__useEasySplit`); it never re-runs the backend. The backend is a thin
-  pass-through of the two images.
-- `setDirtyCanvas(true, true)` to trigger a redraw after changes.
+```python
+return IO.NodeOutput(ui={"a_images": [...], "b_images": [...]})
+```
 
-`node.imgs` is only populated after the workflow runs once (the IMAGE outputs
-must be computed). Until then the widget draws a "Run the workflow" placeholder.
+ComfyUI's Node 2.0 widget reads those references and renders the slider
+comparison. Register the node by exposing `comfy_entrypoint()` returning a
+`ComfyExtension` (see `nodes.py`); `__init__.py` re-exports it and must **not**
+define `NODE_CLASS_MAPPINGS` (otherwise ComfyUI takes the classic branch and
+skips `comfy_entrypoint`).
+
+> **Why Node 2.0 and not a custom canvas widget:** in this environment the
+> legacy path (`onExecuted` output, `node.imgs`, `app.nodePreviewImages`) does
+> NOT deliver node output images to a custom `beforeRegisterNodeDef` /
+> `onDrawForeground` widget — even ComfyUI's own `Compare Images` node (and
+> rgthree's) showed nothing there. The Node 2.0 `ui`-output path is the one that
+> reliably displays images here.
 
 ## Release / publish spec (MUST follow exactly)
 
@@ -191,11 +202,11 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   under the shared name. Pick a namespaced name (e.g. `UseEasyImageCompare`,
   not `ImageCompare`) and check `http://127.0.0.1:8188/object_info/<YourName>`
   after restart.
-- **`import { app } from '/scripts/app.js'` needs `// @ts-ignore`.** TypeScript
-  can't resolve the absolute module specifier, but Vite leaves it external
-  (config `external: ['/scripts/app.js', '/scripts/api.js']`) and ComfyUI serves
-  it at runtime. Register extensions this way (at module top level) so
-  `beforeRegisterNodeDef` fires before nodes register.
+- **Node 2.0 registration via `comfy_entrypoint`.** To register an
+  `IO.ComfyNode`, expose `async def comfy_entrypoint()` returning a
+  `ComfyExtension` and have `__init__.py` re-export it — and **do not** define
+  `NODE_CLASS_MAPPINGS` in `__init__.py`. If you do, ComfyUI takes the classic
+  branch and never calls `comfy_entrypoint` (the node silently disappears).
 - **dist must be built/committed**, or the React UI won't appear when installed.
 - **`.comfyignore`** keeps `tests/` and `ui/node_modules/` out of the published
   archive (good; keep it).
