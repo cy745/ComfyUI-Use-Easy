@@ -1,5 +1,5 @@
-// Import jest-dom additions
-import '@testing-library/jest-dom';
+// Import jest-dom additions (CJS: this file is loaded by Jest as CommonJS)
+require('@testing-library/jest-dom');
 
 // Mock window.app for ComfyUI integration testing
 global.window.app = {
