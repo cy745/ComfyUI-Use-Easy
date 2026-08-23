@@ -1,12 +1,9 @@
 // Custom frontend widget for the UseEasy `UseEasyImageCompare` node.
 //
 // Renders a live side-by-side comparison of the node's two IMAGE outputs with a
-// draggable vertical divider. Everything here is frontend-only (option A): the
-// divider position lives in memory only and never re-runs the backend.
-//
-// We attach a custom widget via `addCustomWidget` (the mechanism rgthree and
-// other extensions use), rather than patching `onDrawForeground` directly, which
-// proved unreliable in this ComfyUI build.
+// draggable vertical divider. Frontend-only (option A): the divider position
+// lives in memory. Once the node executes and ComfyUI publishes preview URLs
+// (app.nodePreviewImages[node.id]), we load them into node.imgs and draw.
 
 // @ts-ignore - ComfyUI serves /scripts/app.js at runtime; vite leaves it external.
 import { app } from '/scripts/app.js';
@@ -16,6 +13,7 @@ const NODE_NAME = 'UseEasyImageCompare';
 interface CompareNode {
   __useEasySplit: number;
   __useEasyDragging: boolean;
+  __useEasyLoading: boolean;
   imgs?: HTMLImageElement[];
   size: number[];
   pos: number[];
@@ -29,6 +27,29 @@ app.registerExtension({
   beforeRegisterNodeDef(nodeType: any, nodeData: any, _app: any): void {
     if (nodeData.name !== NODE_NAME) return;
 
+    // Load the two preview images from ComfyUI's nodePreviewImages into node.imgs.
+    const loadPreviewImages = (node: CompareNode) => {
+      if (node.__useEasyLoading || (Array.isArray(node.imgs) && node.imgs.length >= 2)) return;
+      const urls = app?.nodePreviewImages?.[node.id];
+      if (!Array.isArray(urls) || urls.length < 2) return;
+      node.__useEasyLoading = true;
+      const a = new Image();
+      const b = new Image();
+      a.src = urls[0];
+      b.src = urls[1];
+      let pending = 2;
+      const done = () => {
+        pending -= 1;
+        if (pending <= 0) {
+          node.imgs = [a, b];
+          node.__useEasyLoading = false;
+          node.setDirtyCanvas(true, true);
+        }
+      };
+      a.onload = done;
+      b.onload = done;
+    };
+
     // A custom LiteGraph widget that draws the comparison into the node body.
     const widget = {
       type: 'custom',
@@ -37,31 +58,10 @@ app.registerExtension({
       draw(ctx: CanvasRenderingContext2D, node: CompareNode, _width: number, _y: number) {
         const [w, h] = node.size;
         const imgs = node.imgs || [];
+        const ready = imgs.length >= 2 && imgs[0]?.naturalWidth && imgs[1]?.naturalWidth;
 
-        if (imgs.length >= 2 && imgs[0]?.naturalWidth && imgs[1]?.naturalWidth) {
-          const split = Math.max(0, Math.min(1, node.__useEasySplit ?? 0.5));
-          const x = split * w;
-          // Right side: image_b.
-          ctx.drawImage(imgs[1], 0, 0, w, h);
-          // Left side: image_a, clipped to the left of the divider.
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(0, 0, x, h);
-          ctx.clip();
-          ctx.drawImage(imgs[0], 0, 0, w, h);
-          ctx.restore();
-          // Divider + handle.
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, h);
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-          ctx.beginPath();
-          ctx.arc(x, h / 2, 6, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
+        if (!ready) {
+          loadPreviewImages(node); // start loading from preview URLs once available
           ctx.fillStyle = '#2a2a2a';
           ctx.fillRect(0, 0, w, h);
           ctx.fillStyle = '#888';
@@ -69,7 +69,31 @@ app.registerExtension({
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('Run the workflow to compare', w / 2, h / 2);
+          return;
         }
+
+        const split = Math.max(0, Math.min(1, node.__useEasySplit ?? 0.5));
+        const x = split * w;
+        // Right side: image_b.
+        ctx.drawImage(imgs[1], 0, 0, w, h);
+        // Left side: image_a, clipped to the left of the divider.
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, x, h);
+        ctx.clip();
+        ctx.drawImage(imgs[0], 0, 0, w, h);
+        ctx.restore();
+        // Divider + handle.
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.beginPath();
+        ctx.arc(x, h / 2, 6, 0, Math.PI * 2);
+        ctx.fill();
       },
       computeSize(width: number) {
         return [width, 220];
@@ -81,6 +105,7 @@ app.registerExtension({
       const res = origOnNodeCreated?.apply(this, arguments);
       this.__useEasySplit = 0.5;
       this.__useEasyDragging = false;
+      this.__useEasyLoading = false;
       this.addCustomWidget(widget);
       if (!this.size || this.size[0] < 300) {
         this.size = [320, 320];
