@@ -19,11 +19,11 @@ Published to the **Comfy Registry** under publisher `lalilu`. License:
 
 ```
 AGENTS.md                 # this file
-__init__.py               # exports NODE_CLASS_MAPPINGS + mounts dist/ frontend
-nodes.py                  # classic OUTPUT_NODE UseEasyImageCompare (save temp -> ui dict -> frontend renders)
+__init__.py               # exposes comfy_entrypoint + mounts dist/ frontend
+nodes.py                  # Node 2.0 IO node (PreviewImage.save_images -> ui a_images/b_images)
 subgraphs/                # subgraph blueprints
 ui/                       # React+TS frontend source (ui/dist -> ../dist)
-└─ src/nodeExtension.ts   # node UI: onExecuted loads temp imgs via /view, onDrawForeground + mouse split
+└─ src/nodeExtension.ts   # nodeCreated hook feeds the native IO.ImageCompare Vue widget
 dist/                     # built frontend (committed so git installs work)
 tests/test_nodes.py       # backend unit tests (stdlib unittest)
 pyproject.toml            # package metadata + [tool.comfy]
@@ -36,8 +36,10 @@ LICENSE                   # Apache-2.0
 
 ## Node contract (backend)
 
-`UseEasyImageCompare` is a classic `OUTPUT_NODE` (see "Frontend custom node UI"
-below). The standard contract applies:
+`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode` (registered via
+`comfy_entrypoint`), not a classic node. Its display uses ComfyUI's native
+`IO.ImageCompare` Vue widget. See "Frontend custom node UI" below. The classic
+contract below applies to any future classic nodes you add.
 
 Follow the standard ComfyUI custom-node contract in `nodes.py`:
 
@@ -87,37 +89,34 @@ npm test           # frontend unit tests
 
 ## Frontend custom node UI
 
-`UseEasyImageCompare` uses the proven **OUTPUT_NODE + temp-file** pattern (the
-same shape the community ImageAB-Compare node uses). The backend:
+`UseEasyImageCompare` is a **Node 2.0** `IO.ComfyNode` that renders with
+ComfyUI's **native `IO.ImageCompare` Vue widget** (an interactive slider). This
+works under ComfyUI's Node 2.0 rendering, where the classic
+`onDrawForeground` / `onMouseMove` canvas hooks are NOT called.
 
-1. Saves both input images to `folder_paths.get_temp_directory()` as PNGs.
-2. Returns a **`ui` dict + `result`** from the node:
+The data flow (mirrors ComfyUI's own `Compare Images` node):
 
-```python
-return {
-    "ui": {
-        "img_a_filename": [a_filename],
-        "img_b_filename": [b_filename],
-        "split_direction": [split_direction],
-        "split_ratio": [split_ratio],
-        "base_size": [base_w, base_h],
-    },
-    "result": (composite_tensor,),
-}
-```
+1. **Backend** (`nodes.py`) saves both images via
+   `nodes.PreviewImage().save_images(...)` and returns their references in the
+   `ui` output:
+   ```python
+   return IO.NodeOutput(ui={"a_images": [...], "b_images": [...]})
+   ```
+2. **Frontend** (`ui/src/nodeExtension.ts`) registers a `nodeCreated` hook that,
+   for `node.constructor.comfyClass === 'UseEasyImageCompare'`, intercepts
+   `onExecuted`, reads `a_images`/`b_images`, builds `/view` URLs, and sets the
+   `imagecompare`-type widget's value to `{ beforeImages, afterImages }`:
+   ```ts
+   const widget = node.widgets?.find((w) => w.type === 'imagecompare')
+   if (widget) { widget.value = { beforeImages, afterImages }; widget.callback?.(widget.value) }
+   ```
 
-`ui/src/nodeExtension.ts` registers a `beforeRegisterNodeDef` extension that:
-
-- `onExecuted(output)` reads `img_a_filename` / `img_b_filename` and loads them
-  via `/view?filename=...&type=temp`, storing `HTMLImageElement`s + base size.
-- `onDrawForeground` draws image B, then image A clipped to the split line, plus
-  an A/B label and the divider.
-- `onMouseMove` re-computes the split ratio and redraws (live, no re-run).
-
-> **Key gotcha:** for `onExecuted(output)` to receive the filenames, the node
-> MUST be an `OUTPUT_NODE` and the function MUST return the `{"ui": {...},
-> "result": ...}` dict. Returning a bare tuple of tensors (a normal IMAGE
-> output) does **not** populate the `ui` data, so `onExecuted` gets nothing.
+> **Key gotcha:** ComfyUI's core `imageCompare.ts` only feeds the widget for the
+> built-in `ImageCompare` node (`nodeCreated` checks `comfyClass ===
+> 'ImageCompare'`). A custom node with a different class MUST provide its own
+> `nodeCreated` / `onExecuted` hook to set the widget value, or the slider stays
+> empty ("no images to compare"). Also, the node must be registered via
+> `comfy_entrypoint` (see below), or the Node 2.0 widget won't render.
 
 ## Release / publish spec (MUST follow exactly)
 
@@ -211,11 +210,13 @@ gh secret set REGISTRY_ACCESS_TOKEN -R cy745/ComfyUI-Use-Easy --body "$(cat path
   under the shared name. Pick a namespaced name (e.g. `UseEasyImageCompare`,
   not `ImageCompare`) and check `http://127.0.0.1:8188/object_info/<YourName>`
   after restart.
-- **For `onExecuted(output)` to get image references, the node must be an
-  `OUTPUT_NODE` and its function must return `{"ui": {...}, "result": ...}`.** A
-  function that returns only a bare tuple of tensors (a normal IMAGE output)
-  does not deliver the `ui` data, so the frontend `onExecuted` sees nothing and
-  the comparison stays empty.
+- **Register a Node 2.0 `IO.ComfyNode` via `comfy_entrypoint`.** Expose
+  `async def comfy_entrypoint()` returning a `ComfyExtension`, and have
+  `__init__.py` re-export it — **do not** define `NODE_CLASS_MAPPINGS` in
+  `__init__.py` (if you do, ComfyUI takes the classic branch and the Node 2.0
+  widget won't render). And for the `IO.ImageCompare` widget to receive images,
+  provide a `nodeCreated` hook that sets the widget value (core only does this
+  for the built-in `ImageCompare` class).
 - **dist must be built/committed**, or the React UI won't appear when installed.
 - **`.comfyignore`** keeps `tests/` and `ui/node_modules/` out of the published
   archive (good; keep it).
